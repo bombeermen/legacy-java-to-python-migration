@@ -1,9 +1,9 @@
-"""Крок 6: FastAPI-обгортка над мігрованим billing.py.
+"""FastAPI wrapper around the migrated billing.py.
 
-Запуск (з будь-якої теки):
-    & "E:\\My\\Claude Projects\\UpWork\\ex02\\.venv\\Scripts\\python.exe" -m uvicorn app:app --app-dir "E:\\My\\Claude Projects\\UpWork\\ex02"
+Usage:
+    python -m uvicorn app:app
 
-Документація та пробна форма: http://127.0.0.1:8000/docs
+Docs and a try-it form: http://127.0.0.1:8000/docs
 """
 from decimal import Decimal
 
@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 import billing
 
-app = FastAPI(title="Invoice API", description="Java billing, мігрований на Python через Claude Haiku")
+app = FastAPI(title="Invoice API", description="Legacy Java billing, migrated to Python with Claude Haiku")
 
 
 class ItemIn(BaseModel):
@@ -46,9 +46,9 @@ def calculate_invoice(body: InvoiceIn) -> InvoiceOut:
         invoice.add_item(billing.LineItem(item.sku, item.qty, item.unit_price))
     try:
         r = billing.calculate(invoice)
-    except billing.InvoiceError as exc:  # ті самі повідомлення, що давав Java (ERROR|...)
+    except billing.InvoiceError as exc:  # same messages the Java program printed (ERROR|...)
         raise HTTPException(status_code=422, detail=str(exc))
-    plain = billing._plain  # суми як рядки, без втрати точності Decimal
+    plain = billing._plain  # amounts as strings, no loss of Decimal precision
     return InvoiceOut(
         id=invoice.id,
         subtotal=plain(r.subtotal),

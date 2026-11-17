@@ -1,10 +1,10 @@
-"""Кроки 3 і 5: міграція Java -> Python через Claude Haiku + цикл виправлення.
+"""Migrates the legacy Java code to Python with Claude Haiku, then repairs mismatches.
 
-Запуск (з будь-якої теки):
-    python migrate.py              генерує billing.py, потім виправляє розбіжності (до 3 ітерацій)
-    python migrate.py --fix-only   пропускає генерацію, виправляє наявний billing.py
+Usage:
+    python migrate.py              generate billing.py, then repair mismatches (up to 3 iterations)
+    python migrate.py --fix-only   skip generation, repair the existing billing.py
 
-Ключ береться лише зі змінної середовища ANTHROPIC_API_KEY.
+The key is read only from the ANTHROPIC_API_KEY environment variable.
 """
 import os
 import re
@@ -50,58 +50,58 @@ def extract_code(text: str) -> str:
 
 
 def ask_model(client: anthropic.Anthropic, user_prompt: str) -> str | None:
-    """Один запит до моделі. Повертає код billing.py або None, якщо відповідь непридатна."""
+    """One model request. Returns the billing.py code, or None if the reply is unusable."""
     response = client.messages.create(
         model=MODEL,
         max_tokens=16000,
-        thinking={"type": "disabled"},  # міркування з'їли весь ліміт токенів у першому прогоні
+        thinking={"type": "disabled"},  # extended thinking used up the whole token budget in the first run
         system=SYSTEM,
         messages=[{"role": "user", "content": user_prompt}],
     )
-    # Відповідь може містити не лише текст: беремо тільки текстові блоки.
+    # The reply may contain non-text blocks: keep only the text ones.
     answer = "".join(b.text for b in response.content if b.type == "text")
     u = response.usage
-    print(f"  токени: вхід {u.input_tokens}, вихід {u.output_tokens}")
+    print(f"  tokens: input {u.input_tokens}, output {u.output_tokens}")
     if response.stop_reason == "max_tokens" or not answer.strip():
-        print(f"  відповідь обірвана або порожня (stop_reason={response.stop_reason}), файл не змінено.")
+        print(f"  reply truncated or empty (stop_reason={response.stop_reason}), file left unchanged.")
         return None
     return extract_code(answer)
 
 
 def run_compare() -> tuple[bool, str]:
-    """Запускає compare.py окремим процесом (щоб зіпсований billing.py не зламав цикл)."""
+    """Runs compare.py as a separate process (so a broken billing.py cannot crash the loop)."""
     proc = subprocess.run(
         [sys.executable, str(COMPARE)],
         capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(ROOT),
-        env={**os.environ, "PYTHONIOENCODING": "utf-8"},  # дочірній процес інакше пише в cp1251
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},  # the child would otherwise write in the console codepage
     )
-    first_line = proc.stdout.strip().splitlines()[0] if proc.stdout.strip() else "(порожній вивід)"
+    first_line = proc.stdout.strip().splitlines()[0] if proc.stdout.strip() else "(empty output)"
     print(f"  compare: {first_line}")
     if proc.returncode == 0:
         return True, ""
     details = DIFF_FILE.read_text(encoding="utf-8") if DIFF_FILE.exists() else ""
-    if proc.returncode == 2 or not details.strip():  # billing.py впав цілком
+    if proc.returncode == 2 or not details.strip():  # billing.py crashed outright
         details = proc.stdout + proc.stderr
     return False, details
 
 
 def generate(client: anthropic.Anthropic, java_code: str) -> bool:
-    print(f"Генерація: {len(java_code)} символів Java -> {MODEL}")
+    print(f"Generating: {len(java_code)} characters of Java -> {MODEL}")
     code = ask_model(client, "Migrate this Java code:\n\n" + java_code)
     if code is None:
         return False
     OUT_FILE.write_text(code, encoding="utf-8")
-    print(f"  збережено {OUT_FILE.name} ({len(code.splitlines())} рядків)")
+    print(f"  saved {OUT_FILE.name} ({len(code.splitlines())} lines)")
     return True
 
 
 def fix_loop(client: anthropic.Anthropic, java_code: str) -> bool:
     for attempt in range(1, MAX_FIX_ITERATIONS + 1):
-        print(f"Перевірка перед ітерацією {attempt}:")
+        print(f"Check before iteration {attempt}:")
         ok, details = run_compare()
         if ok:
             return True
-        print(f"Виправлення, ітерація {attempt} з {MAX_FIX_ITERATIONS}:")
+        print(f"Repair, iteration {attempt} of {MAX_FIX_ITERATIONS}:")
         prompt = (
             "Original Java code:\n\n" + java_code
             + "\n\nCurrent billing.py:\n```python\n" + OUT_FILE.read_text(encoding="utf-8") + "```\n\n"
@@ -115,14 +115,14 @@ def fix_loop(client: anthropic.Anthropic, java_code: str) -> bool:
         if code is None:
             return False
         OUT_FILE.write_text(code, encoding="utf-8")
-    print("Фінальна перевірка:")
+    print("Final check:")
     ok, _ = run_compare()
     return ok
 
 
 def main() -> int:
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("Немає змінної ANTHROPIC_API_KEY (відкрий новий PowerShell).")
+        print("ANTHROPIC_API_KEY is not set (open a new terminal after setting it).")
         return 1
 
     client = anthropic.Anthropic()
@@ -133,7 +133,7 @@ def main() -> int:
             return 1
 
     ok = fix_loop(client, java_code)
-    print("РЕЗУЛЬТАТ: усі рахунки збігаються." if ok else "РЕЗУЛЬТАТ: розбіжності лишились, дивись cases/diff.txt.")
+    print("RESULT: all invoices match." if ok else "RESULT: mismatches remain, see cases/diff.txt.")
     return 0 if ok else 1
 
 

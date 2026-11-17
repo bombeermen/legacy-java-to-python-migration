@@ -1,10 +1,10 @@
-"""Крок 4: прогоняє cases/cases.txt через billing.run() і звіряє з cases/golden.txt.
+"""Runs cases/cases.txt through billing.run() and compares the result with cases/golden.txt.
 
-Запуск (з будь-якої теки):
-    & "E:\\My\\Claude Projects\\UpWork\\ex02\\.venv\\Scripts\\python.exe" "E:\\My\\Claude Projects\\UpWork\\ex02\\compare.py"
+Usage:
+    python compare.py
 
-Друкує частку збігів і розбіжності з вхідними даними рахунку.
-Розбіжності також пишуться в cases/diff.txt (для кроку 5).
+Prints the match count and every mismatch together with the invoice input.
+Mismatches are also written to cases/diff.txt (used by the repair loop in migrate.py).
 """
 import importlib
 import sys
@@ -19,7 +19,7 @@ DIFF_OUT = ROOT / "cases" / "diff.txt"
 
 
 def split_invoices(text: str) -> list[str]:
-    """Ділить вхід на блоки INVOICE ... END (як їх читає Java Main)."""
+    """Splits the input into INVOICE ... END blocks (the way the Java Main reads them)."""
     blocks, current = [], []
     for raw in text.splitlines():
         line = raw.strip()
@@ -40,8 +40,8 @@ def main() -> int:
     try:
         billing = importlib.import_module("billing")
         actual = billing.run(cases_text).splitlines()
-    except Exception as exc:  # згенерований код може впасти цілком
-        print(f"billing.run() впав: {type(exc).__name__}: {exc}")
+    except Exception as exc:  # generated code may crash outright
+        print(f"billing.run() crashed: {type(exc).__name__}: {exc}")
         return 2
 
     total = len(expected)
@@ -49,25 +49,25 @@ def main() -> int:
     ok = 0
     for i in range(total):
         exp = expected[i]
-        act = actual[i] if i < len(actual) else "<немає рядка>"
+        act = actual[i] if i < len(actual) else "<missing line>"
         if exp == act:
             ok += 1
         else:
-            inp = blocks[i] if i < len(blocks) else "<немає блоку>"
-            report.append(f"#{i + 1}\nВХІД:\n{inp}\nОЧІКУВАЛОСЬ: {exp}\nОТРИМАНО:    {act}\n")
+            inp = blocks[i] if i < len(blocks) else "<missing block>"
+            report.append(f"#{i + 1}\nINPUT:\n{inp}\nEXPECTED (Java): {exp}\nACTUAL (Python): {act}\n")
 
     if len(actual) != total:
-        report.append(f"Кількість рядків: очікувалось {total}, отримано {len(actual)}\n")
+        report.append(f"Line count: expected {total}, got {len(actual)}\n")
 
-    print(f"Збігів: {ok} з {total}")
+    print(f"Matches: {ok} of {total}")
     if report:
         text = "\n".join(report)
         DIFF_OUT.write_text(text, encoding="utf-8")
-        print(f"Розбіжностей: {total - ok}. Повний список у {DIFF_OUT}\n")
+        print(f"Mismatches: {total - ok}. Full list in {DIFF_OUT}\n")
         print(text[:4000])
     else:
         DIFF_OUT.write_text("", encoding="utf-8")
-        print("Усе збігається.")
+        print("Everything matches.")
     return 0 if ok == total and len(actual) == total else 1
 
 

@@ -1,5 +1,20 @@
 # Legacy Java → Python migration with an LLM, proven by tests
 
+## In plain words
+
+The hard part of migrating an old system is not rewriting it in another language. It is making sure
+the business logic did not change on the way. Old systems carry years of rules (discounts, rounding,
+exceptions) that nobody fully remembers, and one wrong rounding rule means wrong invoices sent to customers.
+
+So this project does not ask you to trust that the rewrite "looks right". It records how the old Java
+program behaves, has an AI model write the Python version, and then **automatically proves the two
+give the same answers**, down to the cent and the wording of every error message. If they differ,
+the differences are sent back to the model to fix. You can re-run that proof yourself in two minutes.
+
+**What "192 of 192" means:** on 192 test invoices, including deliberately invalid ones, the new Python
+code and the original Java program produced identical results. It does not mean the work is done for
+your system. It shows the method works and how I would apply it to your code.
+
 A small legacy Java 8 billing application (invoice totals with discounts, shipping, tax and late fees)
 migrated to Python by Claude Haiku, then wrapped in a FastAPI service.
 The migration is not "looks right" — it is **verified against the original program's output**.
@@ -21,7 +36,7 @@ cd legacy-java-to-python-migration
 python compare.py
 ```
 
-Expected output: `Збігів: 192 з 192` (Ukrainian for "Matches: 192 of 192") and `Усе збігається.` ("Everything matches.").
+Expected output: `Matches: 192 of 192` and `Everything matches.`
 
 ## Transparency: test data, not production
 
