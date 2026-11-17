@@ -11,6 +11,29 @@ The migration is not "looks right" — it is **verified against the original pro
 | Java reference vs. generated Python, 192 invoices (incl. error cases) | **192 / 192 identical** |
 | Self-repair loop | Deliberately broke one business rule (late-fee period rounding): 187 / 192 → model fixed it in 1 iteration → 192 / 192 |
 
+## Verify in 2 minutes (no API key, no packages)
+
+Needs only Python 3.9+. This re-checks the already generated `billing.py` against the stored Java output:
+
+```bash
+git clone https://github.com/bombeermen/legacy-java-to-python-migration.git
+cd legacy-java-to-python-migration
+python compare.py
+```
+
+Expected output: `Збігів: 192 з 192` (Ukrainian for "Matches: 192 of 192") and `Усе збігається.` ("Everything matches.").
+
+## Transparency: test data, not production
+
+- The Java application and all 192 invoices are **synthetic test data I created** for this demonstration,
+  not a real client system. The business rules are plausible legacy quirks, not anyone's real logic.
+- The generated `billing.py` is evidence that the method works, not a tool you can point at arbitrary code.
+  The scripts are tailored to this example's invoice format.
+- A run on **real code** needs a sample from you: the module to migrate, a way to run the original
+  (or its recorded outputs) and representative input data. From those I build the reference outputs,
+  migrate, compare and repair, exactly as above. Results on real data may differ from this example,
+  and the comparison report would show exactly where.
+
 ## How it works
 
 1. `legacy-java/` — the original Java 8 app (`BigDecimal` money, HALF_UP rounding, historical quirks).
