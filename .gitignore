@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+.env
+.env.*
+*.key
+tmpK.txt
+
+cases/diff.txt
